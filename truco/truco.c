@@ -14,9 +14,10 @@ typedef enum {
 
 typedef struct {
     const char *nome;
-    int valor;    // 1..10 (representa 4,5,6,7,Q,J,K,A,2,3)
+    int valor;   
     Naipe naipe;
-    bool ativo;   // true se já foi distribuída
+    bool ativo;  
+	int valorAlternativo; 
 } Carta;
 
 typedef struct {
@@ -30,9 +31,9 @@ typedef struct {
 } Jogador;
 
 Carta baralho[NUM_CARTAS];
-int proxCarta = 0; // índice da próxima carta no baralho embaralhado
+int proxCarta = 0; 
 
-/* protótipos */
+
 const char *valor_para_nome(int valor);
 void iniciandoBaralho();
 const char *convertedor_de_naipe(Naipe n);
@@ -41,35 +42,40 @@ void embaralharBaralho();
 Carta distribuirCartas();
 
 int main() {
+	
+	Jogador jogadores[2];
+	
     srand((unsigned) time(NULL));
     iniciandoBaralho();
     embaralharBaralho();
 
-    printf("Baralho embaralhado (lista completa):\n");
-    for (int x = 0; x < NUM_CARTAS; x++) {
-        printf("%2d: %s de %s (valor interno %d) - ativo=%s\n",
-               x + 1,
-               baralho[x].nome,
-               convertedor_de_naipe(baralho[x].naipe),
-               baralho[x].valor,
-               baralho[x].ativo ? "SIM" : "NAO");
-    }
+  //  do {
+    	for (int x = 0; x < 2; x++) {
+        	for (int y = 0; y < MAX_CARTAS_MAO; y++) {
+            	jogadores[x].mao.cartas[y] = distribuirCartas();
+        	}
+    	}
 
-    printf("\nDistribuindo 5 cartas como exemplo:\n");
-    for (int i = 0; i < 5; i++) {
-        Carta c = distribuirCartas();
-        if (c.nome == NULL) {
-            printf("Nenhuma carta disponível para distribuir.\n");
-            break;
-        }
-        printf("-> Distribuída: %s de %s (valor %d)\n",
-               c.nome, convertedor_de_naipe(c.naipe), c.valor);
+   
+
+//	} while (jogadores[0].pes < 1 && jogadores[1].pes < 1);
+
+
+	for (int i = 0; i < 2; i++) {
+    printf("Jogador %d:\n", i + 1);
+    for (int j = 0; j < MAX_CARTAS_MAO; j++) {
+        Carta c = jogadores[i].mao.cartas[j];
+        printf("  %s de %s (valor %d)\n",
+               c.nome,
+               convertedor_de_naipe(c.naipe),
+               c.valor);
     }
+}
+
 
     return 0;
 }
 
-/* converte valor interno (1..10) para string do nome da carta */
 const char *valor_para_nome(int valor) {
     switch (valor) {
         case 1: return "4";
@@ -86,7 +92,6 @@ const char *valor_para_nome(int valor) {
     }
 }
 
-/* converte enum Naipe para string legível */
 const char *convertedor_de_naipe(Naipe n) {
     switch (n) {
         case PAUS:    return "Paus";
@@ -97,7 +102,6 @@ const char *convertedor_de_naipe(Naipe n) {
     }
 }
 
-/* inicializa baralho em ordem (sem embaralhar ainda) */
 void iniciandoBaralho() {
     int indexBaralho = 0;
     for (int x = 1; x <= 10; x++) {
@@ -112,7 +116,6 @@ void iniciandoBaralho() {
     proxCarta = 0;
 }
 
-/* reseta flags e ponteiro de próxima carta */
 void resetarBaralho() {
     for (int i = 0; i < NUM_CARTAS; i++) {
         baralho[i].ativo = false;
@@ -120,25 +123,23 @@ void resetarBaralho() {
     proxCarta = 0;
 }
 
-/* embaralha o baralho usando Fisher-Yates */
 void embaralharBaralho() {
     for (int i = NUM_CARTAS - 1; i > 0; i--) {
         int j = rand() % (i + 1);
-        /* troca baralho[i] <-> baralho[j] */
         Carta tmp = baralho[i];
         baralho[i] = baralho[j];
         baralho[j] = tmp;
     }
-    /* após embaralhar, nenhuma carta está marcada como distribuída */
+
     resetarBaralho();
 }
 
-/* distribui a próxima carta do baralho embaralhado.
+/* distribui a próxima carta do baralho.
    Marca a carta como ativa e incrementa proxCarta.
-   Se esgotado, retorna Carta com nome == NULL */
+   Se vazio, retorna Carta com nome == NULL */
+   
 Carta distribuirCartas() {
     if (proxCarta >= NUM_CARTAS) {
-        /* baralho esgotado */
         Carta vazio = { NULL, 0, PAUS, true };
         return vazio;
     }
