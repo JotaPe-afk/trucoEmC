@@ -6,18 +6,16 @@
 
 #define MAX_CARTAS_MAO 3
 #define MAX_PONTOS 12
-#define NUM_CARTAS 40
 
 typedef enum {
-    PAUS = 0, COPAS = 1, ESPADAS = 2, OUROS = 3
+    OUROS = 0, ESPADAS = 1, COPAS = 2, PAUS = 3
 } Naipe;
 
 typedef struct {
     const char *nome;
-    int valor;   
+    int valor;
     Naipe naipe;
-    bool ativo;  
-	int valorAlternativo; 
+    bool ativo;
 } Carta;
 
 typedef struct {
@@ -28,52 +26,150 @@ typedef struct {
     Mao mao;
     int pontos;
     int pes;
+    int rodadaGanha;
 } Jogador;
 
-Carta baralho[NUM_CARTAS];
-int proxCarta = 0; 
 
+// baralho
+
+Carta baralho[40];
+Carta vira;
+int manilha_valor = 0;
+
+//rodada
+
+int pontosRodada;
 
 const char *valor_para_nome(int valor);
-void iniciandoBaralho();
 const char *convertedor_de_naipe(Naipe n);
+void iniciandoBaralho();
 void resetarBaralho();
-void embaralharBaralho();
 Carta distribuirCartas();
+void definirViraEManilha();
+int compararCartas(Carta c1, Carta c2);
+void distribuirMaoParaJogadores(Jogador jog[2]);
+void reiniciarRodada(Jogador jog[2]);
+void resetarJogador (Jogador jog[2]);
+int escolherCarta(Jogador *jog, int jogadorNum);
+void mostrar_mao(Jogador *jog, int jogadorNum);
+
 
 int main() {
-	
-	Jogador jogadores[2];
-	
     srand((unsigned) time(NULL));
     iniciandoBaralho();
-    embaralharBaralho();
+    
+    int primeiro, segundo;
+    int escPrimeiro, escSegundo;
+    Carta cartaPrimeiro, cartaSegundo;
 
-  //  do {
-    	for (int x = 0; x < 2; x++) {
-        	for (int y = 0; y < MAX_CARTAS_MAO; y++) {
-            	jogadores[x].mao.cartas[y] = distribuirCartas();
-        	}
-    	}
+    Jogador jogadores[2];
+    
+    int vezJogar = 0;
 
-   
+    do {
+    	
+    	if(jogadores[0].pontos >= MAX_PONTOS){
+    		jogadores[0].pes++;
+    		jogadores[0].pontos = 0;
+		}else if (jogadores[1].pontos >= MAX_PONTOS){
+			jogadores[1].pes++;
+    		jogadores[1].pontos = 0;
+		}
+    	
+        reiniciarRodada(jogadores);
+        resetarJogador(jogadores);
+        
+		printf("\n=== Rodada ===\n");
+		printf("Vira: %s de %s\n", vira.nome, convertedor_de_naipe(vira.naipe));
+		printf("Manilha: %s\n", valor_para_nome(manilha_valor));
+		printf("Placar atual: Jogador1=%d | Jogador2=%d\n", jogadores[0].pontos, jogadores[1].pontos);
+		
+		while(jogadores[0].rodadaGanha < 2 && jogadores[1].rodadaGanha < 2){
+			
+        	printf("Quantidade de pontos: %d\n\n", pontosRodada);
+        	
+        	primeiro = vezJogar;
+        	
+        	
+        	
+		}	
+			
+        int vencedor = x;
+        
+        vezJogar = vencedor;
 
-//	} while (jogadores[0].pes < 1 && jogadores[1].pes < 1);
+		printf("\nPressione Enter para continuar para a próxima rodada...");
+        getchar();
+       	
 
+    } while (jogadores[0].pes < 1 && jogadores[1].pes < 1);
+    
+    if(jogadores[0].pes == 2){
+    		system("cls");
+    		printf("O Vencedor é o JOGADOR 1");
+		}else if (jogadores[1].pontos >= MAX_PONTOS){
+			system("cls");
+    		printf("O Vencedor é o JOGADOR 1");
+		}
 
-	for (int i = 0; i < 2; i++) {
-    printf("Jogador %d:\n", i + 1);
-    for (int j = 0; j < MAX_CARTAS_MAO; j++) {
-        Carta c = jogadores[i].mao.cartas[j];
-        printf("  %s de %s (valor %d)\n",
-               c.nome,
-               convertedor_de_naipe(c.naipe),
-               c.valor);
+    return 0;
+}
+
+// funcoes e procedimentos
+
+void mostrar_mao(Jogador *jog, int jogadorNum) {
+    printf("Mão do Jogador %d:\n", jogadorNum + 1);
+    for (int i = 0; i < MAX_CARTAS_MAO; ++i) {
+        Carta c = jog->mao.cartas[i];
+        printf("  [%d] %s de %s\n", i + 1, c.nome, convertedor_de_naipe(c.naipe));
     }
 }
 
+int escolherCarta(Jogador *jog, int jogadorNum) {
+    int escolha = -1;
+    while (escolha < 1) {
+        mostrar_mao(jog, jogadorNum);
+        
+        printf("Escolha a carta para jogar (1-%d): ", MAX_CARTAS_MAO);
+        scanf("%d", &escolha);
+        
+        if (escolha != 1 && (escolha < 1 || escolha > MAX_CARTAS_MAO)) {
+            while (getchar() != '\n'); 
+            printf("Entrada inválida. Tente novamente.\n");
+            continue;
+        }
+    
+        
+        return escolha-1;
+    }
+}
 
-    return 0;
+void distribuirMaoParaJogadores(Jogador jog[2]) {
+    for (int p = 0; p < 2; ++p) {
+        for (int i = 0; i < MAX_CARTAS_MAO; ++i) {
+            jog[p].mao.cartas[i] = distribuirCartas();
+        }
+    }
+}
+
+void reiniciarRodada(Jogador jog[2]){
+	system("cls");
+	resetarBaralho();
+    definirViraEManilha();
+    pontosRodada = 1;
+    
+    for(int i=0; i<2; i++){
+    	jog[i].rodadaGanha = 0;
+	}
+
+    distribuirMaoParaJogadores(jog);
+}
+
+void resetarJogador (Jogador jog[2]){
+	for (int i = 0; i < 2; ++i) { 
+		jog[i].pontos = 0; 
+		jog[i].pes = 0; 
+	}
 }
 
 const char *valor_para_nome(int valor) {
@@ -94,57 +190,63 @@ const char *valor_para_nome(int valor) {
 
 const char *convertedor_de_naipe(Naipe n) {
     switch (n) {
-        case PAUS:    return "Paus";
-        case COPAS:   return "Copas";
+        case OUROS: return "Ouros";
         case ESPADAS: return "Espadas";
-        case OUROS:   return "Ouros";
-        default:      return "?";
+        case COPAS: return "Copas";
+        case PAUS: return "Paus";
+        default: return "?";
     }
 }
 
 void iniciandoBaralho() {
-    int indexBaralho = 0;
+    int index = 0;
     for (int x = 1; x <= 10; x++) {
         for (int y = 0; y < 4; y++) {
-            baralho[indexBaralho].valor = x;
-            baralho[indexBaralho].naipe = (Naipe)y;
-            baralho[indexBaralho].nome = valor_para_nome(x);
-            baralho[indexBaralho].ativo = false;
-            indexBaralho++;
+            baralho[index].valor = x;
+            baralho[index].naipe = (Naipe)y;
+            baralho[index].nome = valor_para_nome(x);
+            baralho[index].ativo = false;
+            index++;
         }
     }
-    proxCarta = 0;
 }
 
 void resetarBaralho() {
-    for (int i = 0; i < NUM_CARTAS; i++) {
+    for (int i = 0; i < 40; i++)
         baralho[i].ativo = false;
-    }
-    proxCarta = 0;
 }
 
-void embaralharBaralho() {
-    for (int i = NUM_CARTAS - 1; i > 0; i--) {
-        int j = rand() % (i + 1);
-        Carta tmp = baralho[i];
-        baralho[i] = baralho[j];
-        baralho[j] = tmp;
-    }
-
-    resetarBaralho();
-}
-
-/* distribui a próxima carta do baralho.
-   Marca a carta como ativa e incrementa proxCarta.
-   Se vazio, retorna Carta com nome == NULL */
-   
 Carta distribuirCartas() {
-    if (proxCarta >= NUM_CARTAS) {
-        Carta vazio = { NULL, 0, PAUS, true };
-        return vazio;
+    int numeroCarta;
+    do {
+        numeroCarta = rand() % 40;
+    } while (baralho[numeroCarta].ativo);
+    baralho[numeroCarta].ativo = true;
+    return baralho[numeroCarta];
+}
+
+void definirViraEManilha() {
+    vira = distribuirCartas();
+    manilha_valor = vira.valor + 1;
+    if (manilha_valor > 10) manilha_valor = 1;
+}
+
+int compararCartas(Carta c1, Carta c2) {
+    int pesosNaipe[] = {1, 2, 3, 4};
+
+    bool c1Manilha = (c1.valor == manilha_valor);
+    bool c2Manilha = (c2.valor == manilha_valor);
+
+    if (c1Manilha && !c2Manilha) return 1;
+    if (!c1Manilha && c2Manilha) return -1;
+    if (c1Manilha && c2Manilha) {
+        if (pesosNaipe[c1.naipe] > pesosNaipe[c2.naipe]) return 1;
+        if (pesosNaipe[c1.naipe] < pesosNaipe[c2.naipe]) return -1;
+        return 0;
     }
-    Carta c = baralho[proxCarta];
-    baralho[proxCarta].ativo = true;
-    proxCarta++;
-    return c;
+
+    if (c1.valor > c2.valor) return 1;
+    if (c1.valor < c2.valor) return -1;
+    if (c1.valor == c2.valor) return 0;
+    return 0;
 }
