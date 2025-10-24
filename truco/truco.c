@@ -1,162 +1,267 @@
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include <string.h>
+#include <stdbool.h>
 
-#define NUM_CARTAS 40
-#define CARTAS_MAO 3
+#define MAX_CARTAS_MAO 3
+#define MAX_PONTOS 12
+
+typedef enum { OUROS = 0, ESPADAS = 1, COPAS = 2, PAUS = 3 } Naipe;
 
 typedef struct {
-    char nome[10];
-    int valor;      // Valor base da carta (1 a 10)
-    char naipe;     // O, E, C, P (Ouros, Espadas, Copas, Paus)
+    const char *nome;
+    int valor;
+    Naipe naipe;
+    bool ativo;
 } Carta;
 
-char *nomesCartas[] = {"4", "5", "6", "7", "Q", "J", "K", "A", "2", "3"};
+typedef struct {
+    Carta cartas[MAX_CARTAS_MAO];
+} Mao;
 
-void gerarBaralho(Carta baralho[]){
-    char naipes[] = {'O', 'E', 'C', 'P'};
-    int pos = 0;
-    for (int n = 0; n < 4; n++) {
-        for (int v = 1; v <= 10; v++) {
-            Carta c;
-            c.valor = v;
-            c.naipe = naipes[n];
-            sprintf(c.nome, "%s%c", nomesCartas[v - 1], naipes[n]);
-            baralho[pos++] = c;
-        }
-    }
-}
+typedef struct {
+    Mao mao;
+    int pontos;
+    int pes;
+    int rodadaGanha;
+} Jogador;
 
-void embaralhar(Carta baralho[]) {
-    for (int i = 0; i < NUM_CARTAS; i++) {
-        int r = rand() % NUM_CARTAS;
-        Carta temp = baralho[i];
-        baralho[i] = baralho[r];
-        baralho[r] = temp;
-    }
-}
+Carta baralho[40];
+Carta vira;
+int manilha_valor = 0;
+int pontosRodada;
 
-int proximoValor(int valor) {
-    return valor == 10 ? 1 : valor + 1;
-}
-
-int valorTruco(Carta c, int manilhas[4][2]) {
-    // Se for manilha, retorna valor alto
-    for (int i = 0; i < 4; i++) {
-        if (c.valor == manilhas[i][0] && c.naipe == manilhas[i][1]) {
-            return 15 + i; // cada manilha tem forca diferente
-        }
-    }
-
-    // Mapeamento de forca das cartas (4 ate 3)
-    int ordemForca[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}; // 1=4, 10=3
-    return ordemForca[c.valor - 1];
-}
-
-void definirManilhas(Carta vira, int manilhas[4][2]) {
-    int prox = proximoValor(vira.valor);
-    char naipes[] = {'O', 'E', 'C', 'P'};
-    for (int i = 0; i < 4; i++) {
-        manilhas[i][0] = prox;
-        manilhas[i][1] = naipes[i];
-    }
-}
-
-void mostrarMao(Carta mao[], int tamanho) {
-    for (int i = 0; i < tamanho; i++) {
-        if (mao[i].valor != -1)
-            printf("[%d] %s  ", i + 1, mao[i].nome);
-        else
-            printf("[%d] (---)  ", i + 1);
-    }
-    printf("\n");
-}
-
-int compararCartas(Carta c1, Carta c2, int manilhas[4][2]) {
-    int v1 = valorTruco(c1, manilhas);
-    int v2 = valorTruco(c2, manilhas);
-    if (v1 > v2) return 1;
-    else if (v2 > v1) return -1;
-    else return 0;
-}
+const char *valor_para_nome(int valor);
+const char *convertedor_de_naipe(Naipe n);
+void iniciandoBaralho();
+void resetarBaralho();
+Carta distribuirCartas();
+void definirViraEManilha();
+int compararCartas(Carta c1, Carta c2);
+void distribuirMaoParaJogadores(Jogador jog[2]);
+void reiniciarRodada(Jogador jog[2]);
+void resetarJogador(Jogador jog[2]);
+int escolherCarta(Jogador *jog, int jogadorNum);
+void mostrar_mao(Jogador *jog, int jogadorNum);
+int negociarTruco(int pontosAtuais, int iniciador, Jogador jogadores[2]);
 
 int main() {
-    srand(time(NULL));
+    srand((unsigned)time(NULL));
+    iniciandoBaralho();
+    Jogador jogadores[2];
+    int primeiro, segundo, escPrimeiro, escSegundo;
+    Carta cartaPrimeiro, cartaSegundo;
+    int vezJogar = 0, compCarta, vencedor;
+    resetarJogador(jogadores);
 
-    Carta baralho[NUM_CARTAS];
-    gerarBaralho(baralho);
-    embaralhar(baralho);
+    do {
+        if (jogadores[0].pontos >= MAX_PONTOS) { jogadores[0].pes++; jogadores[0].pontos = 0; }
+        else if (jogadores[1].pontos >= MAX_PONTOS) { jogadores[1].pes++; jogadores[1].pontos = 0; }
 
-    Carta maoJogador[CARTAS_MAO];
-    Carta maoBot[CARTAS_MAO];
+        reiniciarRodada(jogadores);
+        for (int i = 0; i < 2; ++i) jogadores[i].rodadaGanha = 0;
+        primeiro = vezJogar;
 
-    for (int i = 0; i < CARTAS_MAO; i++) {
-        maoJogador[i] = baralho[i];
-        maoBot[i] = baralho[i + 3];
-    }
+        while (jogadores[0].rodadaGanha < 2 && jogadores[1].rodadaGanha < 2) {
+            system("cls");
+            printf("\n=== Rodada ===\n");
+            printf("Vira: %s de %s | Manilha: %s\n", vira.nome, convertedor_de_naipe(vira.naipe), valor_para_nome(manilha_valor));
+            printf("Placar: Jogador 1=%d | Jogador 2=%d\n", jogadores[0].pontos, jogadores[1].pontos);
+            printf("Valor da rodada: %d\n", pontosRodada);
 
-    Carta vira = baralho[6];
-    int manilhas[4][2];
-    definirManilhas(vira, manilhas);
+            int opcao;
+            printf("\nJogador %d: 1-Jogar carta  2-Pedir Truco\n", primeiro + 1);
+            scanf("%d", &opcao);
+            getchar();
 
-    printf("==== JOGO DE TRUCO ====\n");
-    printf("Vira: %s\n", vira.nome);
-    printf("Manilhas da rodada:\n");
-    for (int i = 0; i < 4; i++) {
-        printf("- %s%c\n", nomesCartas[manilhas[i][0] - 1], manilhas[i][1]);
-    }
-    printf("========================\n");
+            if (opcao == 2) {
+                int r = negociarTruco(pontosRodada, primeiro, jogadores);
+                if (r == -1) break;
+                pontosRodada = r;
+            }
 
-    int pontosJogador = 0, pontosBot = 0;
+            escPrimeiro = escolherCarta(&jogadores[primeiro], primeiro);
+            cartaPrimeiro = jogadores[primeiro].mao.cartas[escPrimeiro];
 
-    for (int rodada = 1; rodada <= 3; rodada++) {
-        printf("\nRodada %d\n", rodada);
-        printf("Sua mao:\n");
-        mostrarMao(maoJogador, CARTAS_MAO);
+            segundo = 1 - primeiro;
+            escSegundo = escolherCarta(&jogadores[segundo], segundo);
+            cartaSegundo = jogadores[segundo].mao.cartas[escSegundo];
 
-        int escolha;
-        printf("Escolha sua carta (1-3): ");
-        scanf("%d", &escolha);
-        while (escolha < 1 || escolha > CARTAS_MAO || maoJogador[escolha - 1].valor == -1) {
-            printf("Carta invalida! Escolha novamente: ");
-            scanf("%d", &escolha);
+            compCarta = compararCartas(cartaPrimeiro, cartaSegundo);
+
+            if (compCarta == -1) { primeiro = segundo; jogadores[segundo].rodadaGanha++; printf("Jogador %d ganhou\n", segundo + 1); }
+            else if (compCarta == 0) { jogadores[primeiro].rodadaGanha++; jogadores[segundo].rodadaGanha++; printf("Empate\n"); }
+            else { jogadores[primeiro].rodadaGanha++; printf("Jogador %d ganhou\n", primeiro + 1); }
+
+            printf("Pressione Enter para continuar...");
+            getchar();
         }
 
-        Carta cartaJogador = maoJogador[escolha - 1];
-        maoJogador[escolha - 1].valor = -1; // remove carta
+        if (jogadores[0].rodadaGanha == 2) { jogadores[0].pontos += pontosRodada; vencedor = 0; }
+        else if (jogadores[1].rodadaGanha == 2) { jogadores[1].pontos += pontosRodada; vencedor = 1; }
+        else vencedor = vezJogar;
 
-        // Bot joga carta aleatoria
-        int botEscolha;
-        do {
-            botEscolha = rand() % CARTAS_MAO;
-        } while (maoBot[botEscolha].valor == -1);
+        vezJogar = vencedor;
 
-        Carta cartaBot = maoBot[botEscolha];
-        maoBot[botEscolha].valor = -1;
+        printf("\nPressione Enter para próxima rodada...");
+        getchar();
 
-        printf("Voce jogou: %s\n", cartaJogador.nome);
-        printf("Bot jogou: %s\n", cartaBot.nome);
+    } while (jogadores[0].pes < 1 && jogadores[1].pes < 1);
 
-        int resultado = compararCartas(cartaJogador, cartaBot, manilhas);
-
-        if (resultado == 1) {
-            printf("Voce venceu a rodada!\n");
-            pontosJogador++;
-        } else if (resultado == -1) {
-            printf("Bot venceu a rodada!\n");
-            pontosBot++;
-        } else {
-            printf("Empate!\n");
-        }
-
-        if (pontosJogador == 2 || pontosBot == 2) break;
-    }
-
-    printf("\n==== RESULTADO FINAL ====\n");
-    if (pontosJogador > pontosBot) printf("Voce venceu a mao!\n");
-    else if (pontosBot > pontosJogador) printf("Bot venceu a mao!\n");
-    else printf("Empate na mao!\n");
+    system("cls");
+    if (jogadores[0].pes == 1) printf("O Vencedor é o JOGADOR 1\n");
+    else printf("O Vencedor é o JOGADOR 2\n");
 
     return 0;
+}
+
+void mostrar_mao(Jogador *jog, int jogadorNum) {
+    printf("Mão do Jogador %d:\n", jogadorNum + 1);
+    for (int i = 0; i < MAX_CARTAS_MAO; ++i) {
+        Carta c = jog->mao.cartas[i];
+        if (c.ativo) printf("[%d] %s de %s\n", i + 1, c.nome, convertedor_de_naipe(c.naipe));
+        else printf("[%d] (usada)\n", i + 1);
+    }
+}
+
+int escolherCarta(Jogador *jog, int jogadorNum) {
+    int escolha, c;
+    while (1) {
+        mostrar_mao(jog, jogadorNum);
+        printf("Jogador %d, escolha (1-%d): ", jogadorNum + 1, MAX_CARTAS_MAO);
+        if (scanf("%d", &escolha) != 1) { while ((c = getchar()) != '\n' && c != EOF); continue; }
+        while ((c = getchar()) != '\n' && c != EOF);
+        if (escolha < 1 || escolha > MAX_CARTAS_MAO) continue;
+        int idx = escolha - 1;
+        if (!jog->mao.cartas[idx].ativo) continue;
+        jog->mao.cartas[idx].ativo = false;
+        return idx;
+    }
+}
+
+void distribuirMaoParaJogadores(Jogador jog[2]) {
+    for (int p = 0; p < 2; ++p)
+        for (int i = 0; i < MAX_CARTAS_MAO; ++i)
+            jog[p].mao.cartas[i] = distribuirCartas();
+}
+
+void reiniciarRodada(Jogador jog[2]) {
+    system("cls");
+    resetarBaralho();
+    definirViraEManilha();
+    pontosRodada = 1;
+    for (int i = 0; i < 2; i++) jog[i].rodadaGanha = 0;
+    distribuirMaoParaJogadores(jog);
+}
+
+void resetarJogador(Jogador jog[2]) {
+    for (int i = 0; i < 2; ++i) {
+        jog[i].pontos = 0;
+        jog[i].pes = 0;
+        jog[i].rodadaGanha = 0;
+    }
+}
+
+const char *valor_para_nome(int valor) {
+    switch (valor) {
+        case 1: return "4"; case 2: return "5"; case 3: return "6"; case 4: return "7";
+        case 5: return "Q"; case 6: return "J"; case 7: return "K"; case 8: return "A";
+        case 9: return "2"; case 10: return "3"; default: return "?";
+    }
+}
+
+const char *convertedor_de_naipe(Naipe n) {
+    switch (n) {
+        case OUROS: return "Ouros"; case ESPADAS: return "Espadas";
+        case COPAS: return "Copas"; case PAUS: return "Paus"; default: return "?";
+    }
+}
+
+void iniciandoBaralho() {
+    int index = 0;
+    for (int x = 1; x <= 10; x++)
+        for (int y = 0; y < 4; y++) {
+            baralho[index].valor = x;
+            baralho[index].naipe = (Naipe)y;
+            baralho[index].nome = valor_para_nome(x);
+            baralho[index].ativo = false;
+            index++;
+        }
+}
+
+void resetarBaralho() {
+    for (int i = 0; i < 40; i++)
+        baralho[i].ativo = false;
+}
+
+Carta distribuirCartas() {
+    int numeroCarta;
+    do { numeroCarta = rand() % 40; } while (baralho[numeroCarta].ativo);
+    baralho[numeroCarta].ativo = true;
+    return baralho[numeroCarta];
+}
+
+void definirViraEManilha() {
+    vira = distribuirCartas();
+    manilha_valor = vira.valor + 1;
+    if (manilha_valor > 10) manilha_valor = 1;
+}
+
+int compararCartas(Carta c1, Carta c2) {
+    int pesosNaipe[] = {1, 2, 3, 4};
+    bool c1Manilha = (c1.valor == manilha_valor);
+    bool c2Manilha = (c2.valor == manilha_valor);
+    if (c1Manilha && !c2Manilha) return 1;
+    if (!c1Manilha && c2Manilha) return -1;
+    if (c1Manilha && c2Manilha) {
+        if (pesosNaipe[c1.naipe] > pesosNaipe[c2.naipe]) return 1;
+        if (pesosNaipe[c1.naipe] < pesosNaipe[c2.naipe]) return -1;
+        return 0;
+    }
+    if (c1.valor > c2.valor) return 1;
+    if (c1.valor < c2.valor) return -1;
+    return 0;
+}
+
+int negociarTruco(int pontosAtuais, int iniciador, Jogador jogadores[2]) {
+    int valores[] = {1, 3, 6, 9, 12};
+    int idx = 0;
+    for (int i = 0; i < 5; ++i) if (valores[i] == pontosAtuais) { idx = i; break; }
+    int challenger = iniciador, responder = 1 - challenger;
+
+    while (1) {
+        if (idx >= 4) {
+            int resp;
+            printf("\nRodada já no máximo (%d). Jogador %d: [1] Aceitar  [3] Correr\n", valores[idx], responder + 1);
+            if (scanf("%d", &resp) != 1) { while (getchar() != '\n'); continue; }
+            while (getchar() != '\n');
+            if (resp == 1) return valores[idx];
+            if (resp == 3) {
+                jogadores[challenger].pontos += valores[idx];
+                printf("Jogador %d correu. Jogador %d ganha %d ponto(s).\n", responder + 1, challenger + 1, valores[idx]);
+                return -1;
+            }
+            continue;
+        }
+
+        int proximoValor = valores[idx + 1];
+        printf("\nJogador %d pediu Truco para %d pontos! Jogador %d, responda: [1] Aceitar  [2] Aumentar  [3] Correr\n",
+               challenger + 1, proximoValor, responder + 1);
+        int resp;
+        if (scanf("%d", &resp) != 1) { while (getchar() != '\n'); continue; }
+        while (getchar() != '\n');
+        if (resp == 1) return proximoValor;
+        else if (resp == 3) {
+            jogadores[challenger].pontos += proximoValor;
+            printf("Jogador %d correu. Jogador %d ganha %d ponto(s).\n", responder + 1, challenger + 1, proximoValor);
+            return -1;
+        } else if (resp == 2) {
+            idx++;
+            int novoChallenger = responder;
+            responder = challenger;
+            challenger = novoChallenger;
+            continue;
+        }
+    }
 }
