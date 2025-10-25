@@ -27,6 +27,7 @@ typedef struct {
     int rodadaGanha;
 } Jogador;
 
+
 Carta baralho[40];
 Carta vira;
 int manilha_valor = 0;
@@ -45,6 +46,62 @@ void resetarJogador(Jogador jog[2]);
 int escolherCarta(Jogador *jog, int jogadorNum);
 void mostrar_mao(Jogador *jog, int jogadorNum);
 int negociarTruco(int pontosAtuais, int iniciador, Jogador jogadores[2]);
+
+#define ALTURA_ARTE 6
+#define LARGURA_ARTE 10
+
+// Artes fixas (uma por naipe)
+const char *artes_naipe[4][ALTURA_ARTE] = {
+    { 
+        " _____",
+        "|  ^  |",
+        "| /.\\ |", //Espadas
+        "|(_._)|",
+        "|  |  |",
+        "|_____|"
+    },
+    { 
+        " _____",
+        "|  ^  |",
+        "| / \\ |", //Ouros
+        "| \\ / |",
+        "|  v  |",
+        "|_____|"
+    },
+    { 
+        " _____",
+        "|  _  |",
+        "| ( ) |", //Paus
+        "|(_'_)|",
+        "|  |  |",
+        "|_____|"
+    },
+    { 
+        " _____",
+        "| _ _ |",
+        "|( v )|", //
+        "| \\ / |",
+        "|  v  |",
+        "|_____|"
+    }
+};
+
+void gerar_arte_carta(Carta c, char arte[ALTURA_ARTE][LARGURA_ARTE]) {
+    int naipeIndex = c.naipe;
+
+    // Copia arte base
+    for (int i = 0; i < ALTURA_ARTE; i++) {
+        strcpy(arte[i], artes_naipe[naipeIndex][i]);
+    }
+
+    // Pega o símbolo da carta (A, K, Q, J, 7 etc.)
+    char simbolo = c.nome[0];
+
+    // Substitui nos cantos
+    arte[1][1] = simbolo;  // canto superior esquerdo
+    
+}
+
 
 int main() {
     srand((unsigned)time(NULL));
@@ -117,13 +174,35 @@ int main() {
 }
 
 void mostrar_mao(Jogador *jog, int jogadorNum) {
-    printf("Mão do Jogador %d:\n", jogadorNum + 1);
-    for (int i = 0; i < MAX_CARTAS_MAO; ++i) {
-        Carta c = jog->mao.cartas[i];
-        if (c.ativo) printf("[%d] %s de %s\n", i + 1, c.nome, convertedor_de_naipe(c.naipe));
-        else printf("[%d] (usada)\n", i + 1);
+    printf("\nMao do Jogador %d:\n", jogadorNum + 1);
+
+    // Gera arte de cada carta
+    char artes[MAX_CARTAS_MAO][ALTURA_ARTE][LARGURA_ARTE];
+
+    for (int i = 0; i < MAX_CARTAS_MAO; i++) {
+        if (jog->mao.cartas[i].ativo)
+            gerar_arte_carta(jog->mao.cartas[i], artes[i]);
+        else {
+            // Carta usada → mostra carta vazia
+            for (int l = 0; l < ALTURA_ARTE; l++)
+                strcpy(artes[i][l], "         ");
+        }
     }
+
+    // Mostrar índices acima das cartas
+    for (int i = 0; i < MAX_CARTAS_MAO; i++)
+        printf("   [%d]     ", i + 1);
+    printf("\n");
+
+    // Mostrar todas as linhas das cartas lado a lado
+    for (int linha = 0; linha < ALTURA_ARTE; linha++) {
+    for (int i = 0; i < MAX_CARTAS_MAO; i++) {
+        printf("%-9s  ", artes[i][linha]); // <- garante largura fixa
+    }
+    printf("\n");
 }
+}
+
 
 int escolherCarta(Jogador *jog, int jogadorNum) {
     int escolha, c;
