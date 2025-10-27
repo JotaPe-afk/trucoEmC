@@ -54,7 +54,7 @@ int negociarTruco(int pontosAtuais, int iniciador, Jogador jogadores[2]);
 const char *artes_naipe[4][ALTURA_ARTE] = {
     { 
         " _____",
-        "|  ^  |",
+        "|  .  |",
         "| /.\\ |", //Espadas
         "|(_._)|",
         "|  |  |",
