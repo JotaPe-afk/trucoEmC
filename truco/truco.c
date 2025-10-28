@@ -140,8 +140,20 @@ int main() {
 
             escPrimeiro = escolherCarta(&jogadores[primeiro], primeiro);
             cartaPrimeiro = jogadores[primeiro].mao.cartas[escPrimeiro];
+            
+			segundo = 1 - primeiro;	
+			
+            printf("\nJogador %d: 1-Jogar carta  2-Pedir Truco\n", primeiro + 1);
+            scanf("%d", &opcao);
+            getchar();
 
-            segundo = 1 - primeiro;
+            if (opcao == 2) {
+                int r = negociarTruco(pontosRodada, primeiro, jogadores);
+                if (r == -1) break;
+                pontosRodada = r;
+            }	
+				
+            
             escSegundo = escolherCarta(&jogadores[segundo], segundo);
             cartaSegundo = jogadores[segundo].mao.cartas[escSegundo];
 
