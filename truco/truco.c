@@ -103,7 +103,7 @@ void gerar_arte_carta(Carta c, char arte[ALTURA_ARTE][LARGURA_ARTE]) {
 }
 
 
-int main() {
+/* int main() {
     srand((unsigned)time(NULL));
     iniciandoBaralho();
     Jogador jogadores[2];
@@ -183,7 +183,7 @@ int main() {
     else printf("O Vencedor é o JOGADOR 2\n");
 
     return 0;
-}
+} */
 
 void mostrar_mao(Jogador *jog, int jogadorNum) {
     printf("\nMao do Jogador %d:\n", jogadorNum + 1);
