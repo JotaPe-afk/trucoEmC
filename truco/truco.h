@@ -31,8 +31,9 @@ extern Carta vira;
 extern int manilha_valor;
 extern int pontosRodada;
 
+// Protótipos das funções
 void iniciandoBaralho();
-void resetarBaralho(); // ADICIONAR ESTE PROTÃ“TIPO
+void resetarBaralho();
 void resetarJogador(Jogador jog[2]);
 void reiniciarRodada(Jogador jog[2]);
 void distribuirMaoParaJogadores(Jogador jog[2]);
@@ -43,5 +44,6 @@ int negociarTruco(int pontosAtuais, int iniciador, Jogador jogadores[2]);
 void mostrar_mao(Jogador *jog, int jogadorNum);
 Carta distribuirCartas();
 void definirViraEManilha();
+int escolherCarta(Jogador *jog, int jogadorNum);
 
 #endif
