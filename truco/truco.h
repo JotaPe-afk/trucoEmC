@@ -32,6 +32,7 @@ extern int manilha_valor;
 extern int pontosRodada;
 
 void iniciandoBaralho();
+void resetarBaralho(); // ADICIONAR ESTE PROTÓTIPO
 void resetarJogador(Jogador jog[2]);
 void reiniciarRodada(Jogador jog[2]);
 void distribuirMaoParaJogadores(Jogador jog[2]);
@@ -44,4 +45,3 @@ Carta distribuirCartas();
 void definirViraEManilha();
 
 #endif
-

@@ -238,12 +238,17 @@ void distribuirMaoParaJogadores(Jogador jog[2]) {
 }
 
 void reiniciarRodada(Jogador jog[2]) {
-    system("cls");
     resetarBaralho();
     definirViraEManilha();
-    pontosRodada = 1;
-    for (int i = 0; i < 2; i++) jog[i].rodadaGanha = 0;
-    distribuirMaoParaJogadores(jog);
+    
+    // Distribuir cartas para ambos os jogadores
+    for (int p = 0; p < 2; p++) {
+        for (int i = 0; i < MAX_CARTAS_MAO; i++) {
+            jog[p].mao.cartas[i] = distribuirCartas();
+            jog[p].mao.cartas[i].ativo = true;
+        }
+        jog[p].rodadaGanha = 0;
+    }
 }
 
 void resetarJogador(Jogador jog[2]) {
