@@ -70,7 +70,7 @@ void processarTrucoCliente(SOCKET sock, int* pontosRodada, Jogador jogadores[2],
                 jogadores[challenger].pontos += *pontosRodada;
                 printf("Jogador %d correu! Jogador %d ganha %d ponto(s)\n", 
                        responder + 1, challenger + 1, *pontosRodada);
-                break;
+                return;
             } else if (resposta == 2) {
                 idx++;
                 if (idx >= 4) {
@@ -90,12 +90,12 @@ void processarTrucoCliente(SOCKET sock, int* pontosRodada, Jogador jogadores[2],
                 send(sock, buffer, strlen(buffer), 0);
             }
         }
-        else if (strstr(buffer, "TRUCO_CORREU:") == buffer) {
+        else if (strstr(buffer, "TRUCO_CORREU_FIM:") == buffer) {
             int jogador, pontos;
-            sscanf(buffer, "TRUCO_CORREU:%d:%d", &jogador, &pontos);
+            sscanf(buffer, "TRUCO_CORREU_FIM:%d:%d", &jogador, &pontos);
             jogadores[jogador].pontos = pontos;
             printf("Jogador %d correu do truco! Placar atualizado.\n", jogador + 1);
-            break;
+            return;
         }
     }
 }
@@ -126,10 +126,9 @@ int main() {
     char viraNome[10] = "";
     char viraNaipe[10] = "";
     char manilhaNome[10] = "";
-    int rodada = 1; // Declarar a variável rodada
+    int rodada = 1;
 
     while (1) {
-        // Receber mensagens do servidor continuamente
         int bytesRecebidos = recv(sock, buffer, sizeof(buffer) - 1, 0);
         if (bytesRecebidos <= 0) {
             printf("Servidor desconectou\n");
@@ -137,7 +136,7 @@ int main() {
         }
         buffer[bytesRecebidos] = '\0';
         
-        printf("Mensagem recebida: %s\n", buffer); // Debug
+        printf("Mensagem recebida: %s\n", buffer);
         
         if (strstr(buffer, "NOVA_MAO:") == buffer) {
             char temp[100];
@@ -152,7 +151,7 @@ int main() {
             printf("Manilha: %s\n\n", manilhaNome);
             
             reiniciarRodada(jogadores);
-            rodada = 1; // Resetar rodada para nova mão
+            rodada = 1;
         }
         else if (strstr(buffer, "INFO_COMPLETA:") == buffer) {
             char cartaJ1Nome[10], cartaJ1Naipe[10];
@@ -164,37 +163,46 @@ int main() {
             mostrarInfoRodadaCompleta(viraNome, viraNaipe, manilhaNome, rodada, pontos1, pontos2, pontosRodada, cartaJ1Nome, cartaJ1Naipe);
         }
         else if (strstr(buffer, "SUA_VEZ") != NULL) {
-		    // Debug: mostrar mensagem completa
-		    printf("Mensagem SUA_VEZ recebida: %s\n", buffer);
-		    
-		    // Hora de jogar
-		    printf("Sua vez de jogar!\n");
-		    mostrar_mao(&jogadores[1], 1);
-		    
-		    int opcao;
-		    printf("\nJogador 2: 1-Jogar carta  2-Pedir Truco\n");
-		    scanf("%d", &opcao);
-		    getchar();
-		
-		    if (opcao == 2) {
-		        processarTrucoCliente(sock, &pontosRodada, jogadores, 1);
-		        if (jogadores[0].pontos >= 12 || jogadores[1].pontos >= 12) {
-		            break;
-		        }
-		        printf("\nSua vez de jogar (apos truco)!\n");
-		        mostrar_mao(&jogadores[1], 1);
-		    }
-		
-		    int carta2 = escolherCarta(&jogadores[1], 1);
-		    Carta c2 = jogadores[1].mao.cartas[carta2];
-		    
-		    sprintf(buffer, "CARTA:%d:%d:%d", c2.valor, c2.naipe, carta2 + 1);
-		    send(sock, buffer, strlen(buffer), 0);
-		
-		    printf("\nVoce jogou: %s de %s\n", c2.nome, convertedor_de_naipe(c2.naipe));
-		
-		    // Receber resultado
-		    printf("Aguardando resultado...\n");
+            printf("Mensagem SUA_VEZ recebida: %s\n", buffer);
+            
+            // Verificar se houve corrida antes de jogar
+            if (jogadores[0].pontos > 0 || jogadores[1].pontos > 0) {
+                printf("Mao finalizada devido a corrida. Aguardando nova mao...\n");
+                continue;
+            }
+            
+            printf("Sua vez de jogar!\n");
+            mostrar_mao(&jogadores[1], 1);
+            
+            int opcao;
+            printf("\nJogador 2: 1-Jogar carta  2-Pedir Truco\n");
+            scanf("%d", &opcao);
+            getchar();
+
+            if (opcao == 2) {
+                processarTrucoCliente(sock, &pontosRodada, jogadores, 1);
+                if (jogadores[0].pontos >= 12 || jogadores[1].pontos >= 12) {
+                    break;
+                }
+                
+                // Se alguém correu do truco, não continuar jogando
+                if (jogadores[0].pontos > 0 || jogadores[1].pontos > 0) {
+                    printf("Mao finalizada devido a corrida. Aguardando nova mao...\n");
+                    continue;
+                }
+                
+                printf("\nSua vez de jogar (apos truco)!\n");
+                mostrar_mao(&jogadores[1], 1);
+            }
+
+            int carta2 = escolherCarta(&jogadores[1], 1);
+            Carta c2 = jogadores[1].mao.cartas[carta2];
+            
+            sprintf(buffer, "CARTA:%d:%d:%d", c2.valor, c2.naipe, carta2 + 1);
+            send(sock, buffer, strlen(buffer), 0);
+
+            printf("\nVoce jogou: %s de %s\n", c2.nome, convertedor_de_naipe(c2.naipe));
+            printf("Aguardando resultado...\n");
         }
         else if (strstr(buffer, "TRUCO_PEDIDO:") == buffer) {
             int valorTruco, challenger;
@@ -217,6 +225,13 @@ int main() {
                 jogadores[challenger].pontos += pontosRodada;
                 printf("Voce correu! Jogador %d ganha %d ponto(s)\n", challenger + 1, pontosRodada);
             }
+        }
+        else if (strstr(buffer, "TRUCO_CORREU_FIM:") == buffer) {
+            int jogador, pontos;
+            sscanf(buffer, "TRUCO_CORREU_FIM:%d:%d", &jogador, &pontos);
+            jogadores[jogador].pontos = pontos;
+            printf("Jogador %d correu do truco! Placar atualizado.\n", jogador + 1);
+            printf("Mao finalizada devido a corrida. Aguardando nova mao...\n");
         }
         else if (strstr(buffer, "RESULTADO:") == buffer) {
             int resultado, rodadasJ1, rodadasJ2;
