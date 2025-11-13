@@ -6,16 +6,15 @@
 #include "truco.h"
 
 #define ALTURA_ARTE 6
-#define LARGURA_ARTE 10
+#define LARGURA_ARTE 11
 
 Carta baralho[40];
 Carta vira;
 int manilha_valor = 0;
 int pontosRodada = 1;
 
-// Artes fixas (uma por naipe)
 const char *artes_naipe[4][ALTURA_ARTE] = {
-    { 
+    {
    		" _____",
         "|  ^  |",
         "| / \\ |",
@@ -23,15 +22,15 @@ const char *artes_naipe[4][ALTURA_ARTE] = {
         "|  v  |",
         "|_____|"
     },
-    { 
+    {
     	" _____",
         "|  .  |",
         "| /.\\ |",
         "|(_._)|",
         "|  |  |",
-        "|_____|" 
+        "|_____|"
     },
-    { 
+    {
          " _____",
         "| _ _ |",
         "|( v )|",
@@ -45,7 +44,7 @@ const char *artes_naipe[4][ALTURA_ARTE] = {
         "| ( ) |",
         "|(_'_)|",
         "|  |  |",
-        "|_____|" 
+        "|_____|"
     }
 };
 
@@ -56,10 +55,17 @@ void gerar_arte_carta(Carta c, char arte[ALTURA_ARTE][LARGURA_ARTE]) {
         strcpy(arte[i], artes_naipe[naipeIndex][i]);
     }
 
-    char simbolo = c.nome[0];
-    if (strcmp(c.nome, "10") == 0) simbolo = '0'; // Tratamento especial para o '10' se necessário
+    if (c.nome != NULL && c.nome[0] != '\0') {
+        arte[1][1] = c.nome[0];
+    } else {
+        arte[1][1] = '?';
+    }
 
-    arte[1][1] = simbolo;
+    if (c.nome != NULL && c.nome[0] != '\0') {
+        arte[4][5] = c.nome[0];
+    } else {
+        arte[4][5] = '?';
+    }
 }
 
 void mostrar_mao(Jogador *jog, int jogadorNum) {
@@ -72,7 +78,7 @@ void mostrar_mao(Jogador *jog, int jogadorNum) {
             gerar_arte_carta(jog->mao.cartas[i], artes[i]);
         else {
             for (int l = 0; l < ALTURA_ARTE; l++)
-                strcpy(artes[i][l], "         ");
+                strcpy(artes[i][l], "          ");
         }
     }
 
@@ -82,26 +88,26 @@ void mostrar_mao(Jogador *jog, int jogadorNum) {
 
     for (int linha = 0; linha < ALTURA_ARTE; linha++) {
         for (int i = 0; i < MAX_CARTAS_MAO; i++) {
-            printf("%-9s  ", artes[i][linha]);
+            printf("%-10s ", artes[i][linha]);
         }
         printf("\n");
     }
 }
 
 int escolherCarta(Jogador *jog, int jogadorNum) {
-    int escolha, c;
+    int escolha;
     while (1) {
         mostrar_mao(jog, jogadorNum);
         printf("Jogador %d, escolha (1-%d): ", jogadorNum + 1, MAX_CARTAS_MAO);
         if (scanf("%d", &escolha) != 1) {
-            while ((c = getchar()) != '\n' && c != EOF);
+            while (getchar() != '\n');
             continue;
         }
-        while ((c = getchar()) != '\n' && c != EOF);
+        while (getchar() != '\n');
         if (escolha < 1 || escolha > MAX_CARTAS_MAO) continue;
         int idx = escolha - 1;
         if (!jog->mao.cartas[idx].ativo) continue;
-        jog->mao.cartas[idx].ativo = false;
+
         return idx;
     }
 }
@@ -118,8 +124,6 @@ void reiniciarRodada(Jogador jog[2]) {
     definirViraEManilha();
     pontosRodada = 1;
     for (int i = 0; i < 2; i++) jog[i].rodadaGanha = 0;
-    // Não distribui as cartas aqui, pois o servidor distribui e sincroniza
-    // O servidor chama distribuirMaoParaJogadores() separadamente
 }
 
 void resetarJogador(Jogador jog[2]) {
@@ -151,7 +155,7 @@ void iniciandoBaralho() {
         for (int y = 0; y < 4; y++) {
             baralho[index].valor = x;
             baralho[index].naipe = (Naipe)y;
-            strcpy(baralho[index].nome, valor_para_nome(x)); // <-- CORRIGIDO
+            strcpy(baralho[index].nome, valor_para_nome(x));
             baralho[index].ativo = false;
             index++;
         }
@@ -175,12 +179,11 @@ Carta distribuirCartas() {
 void definirViraEManilha() {
     vira = distribuirCartas();
     manilha_valor = (vira.valor % 10) + 1;
-    strcpy(vira.nome, valor_para_nome(vira.valor)); // <-- CORRIGIDO
+    strcpy(vira.nome, valor_para_nome(vira.valor));
 }
 
 int compararCartas(Carta c1, Carta c2) {
-    // A lógica de comparação foi mantida, pois está correta para Truco.
-    int pesosNaipe[] = {1, 2, 3, 4}; // OUROS=1, ESPADAS=2, COPAS=3, PAUS=4 (Ordem Crescente)
+    int pesosNaipe[] = {1, 2, 3, 4};
     bool c1Manilha = (c1.valor == manilha_valor);
     bool c2Manilha = (c2.valor == manilha_valor);
 
@@ -189,67 +192,9 @@ int compararCartas(Carta c1, Carta c2) {
     if (c1Manilha && c2Manilha) {
         if (pesosNaipe[c1.naipe] > pesosNaipe[c2.naipe]) return 1;
         if (pesosNaipe[c1.naipe] < pesosNaipe[c2.naipe]) return -1;
-        return 0; // Empate
+        return 0;
     }
     if (c1.valor > c2.valor) return 1;
     if (c1.valor < c2.valor) return -1;
-    return 0; // Empate
-}
-
-int negociarTruco(int pontosAtuais, int iniciador, Jogador jogadores[2]) {
-    // ... (Mantido o código anterior para uso do servidor/debug local se necessário,
-    // mas o protocolo de Truco via socket será corrigido no server.c/client.c)
-    int valores[] = {1, 3, 6, 9, 12};
-    int idx = 0;
-    for (int i = 0; i < 5; ++i)
-        if (valores[i] == pontosAtuais) {
-            idx = i;
-            break;
-        }
-
-    int challenger = iniciador, responder = 1 - challenger;
-
-    while (1) {
-        if (idx >= 4) {
-            int resp;
-            printf("\nRodada já no máximo (%d). Jogador %d: [1] Aceitar  [3] Correr\n", valores[idx], responder + 1);
-            if (scanf("%d", &resp) != 1) {
-                while (getchar() != '\n');
-                continue;
-            }
-            while (getchar() != '\n');
-
-            if (resp == 1) return valores[idx];
-            if (resp == 3) {
-                jogadores[challenger].pontos += valores[idx];
-                printf("Jogador %d correu. Jogador %d ganha %d ponto(s).\n", responder + 1, challenger + 1, valores[idx]);
-                return -1;
-            }
-            continue;
-        }
-
-        int proximoValor = valores[idx + 1];
-        printf("\nJogador %d pediu Truco para %d pontos! Jogador %d, responda: [1] Aceitar  [2] Aumentar  [3] Correr\n",
-               challenger + 1, proximoValor, responder + 1);
-
-        int resp;
-        if (scanf("%d", &resp) != 1) {
-            while (getchar() != '\n');
-            continue;
-        }
-        while (getchar() != '\n');
-
-        if (resp == 1) return proximoValor;
-        else if (resp == 3) {
-            jogadores[challenger].pontos += proximoValor;
-            printf("Jogador %d correu. Jogador %d ganha %d ponto(s).\n", responder + 1, challenger + 1, proximoValor);
-            return -1;
-        } else if (resp == 2) {
-            idx++;
-            int novoChallenger = responder;
-            responder = challenger;
-            challenger = novoChallenger;
-            continue;
-        }
-    }
+    return 0;
 }

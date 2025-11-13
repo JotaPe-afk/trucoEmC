@@ -9,7 +9,7 @@
 typedef enum { OUROS = 0, ESPADAS = 1, COPAS = 2, PAUS = 3 } Naipe;
 
 typedef struct {
-    char nome[20]; // <-- CORRIGIDO: Array de char em vez de const char*
+    char nome[20];
     int valor;
     Naipe naipe;
     bool ativo;
@@ -31,7 +31,6 @@ extern Carta vira;
 extern int manilha_valor;
 extern int pontosRodada;
 
-// Protótipos das funções
 void iniciandoBaralho();
 void resetarBaralho();
 void resetarJogador(Jogador jog[2]);
