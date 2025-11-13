@@ -57,6 +57,8 @@ void gerar_arte_carta(Carta c, char arte[ALTURA_ARTE][LARGURA_ARTE]) {
     }
 
     char simbolo = c.nome[0];
+    if (strcmp(c.nome, "10") == 0) simbolo = '0'; // Tratamento especial para o '10' se necessário
+
     arte[1][1] = simbolo;
 }
 
@@ -91,9 +93,9 @@ int escolherCarta(Jogador *jog, int jogadorNum) {
     while (1) {
         mostrar_mao(jog, jogadorNum);
         printf("Jogador %d, escolha (1-%d): ", jogadorNum + 1, MAX_CARTAS_MAO);
-        if (scanf("%d", &escolha) != 1) { 
-            while ((c = getchar()) != '\n' && c != EOF); 
-            continue; 
+        if (scanf("%d", &escolha) != 1) {
+            while ((c = getchar()) != '\n' && c != EOF);
+            continue;
         }
         while ((c = getchar()) != '\n' && c != EOF);
         if (escolha < 1 || escolha > MAX_CARTAS_MAO) continue;
@@ -116,7 +118,8 @@ void reiniciarRodada(Jogador jog[2]) {
     definirViraEManilha();
     pontosRodada = 1;
     for (int i = 0; i < 2; i++) jog[i].rodadaGanha = 0;
-    distribuirMaoParaJogadores(jog);
+    // Não distribui as cartas aqui, pois o servidor distribui e sincroniza
+    // O servidor chama distribuirMaoParaJogadores() separadamente
 }
 
 void resetarJogador(Jogador jog[2]) {
@@ -148,7 +151,7 @@ void iniciandoBaralho() {
         for (int y = 0; y < 4; y++) {
             baralho[index].valor = x;
             baralho[index].naipe = (Naipe)y;
-            baralho[index].nome = valor_para_nome(x);
+            strcpy(baralho[index].nome, valor_para_nome(x)); // <-- CORRIGIDO
             baralho[index].ativo = false;
             index++;
         }
@@ -161,10 +164,10 @@ void resetarBaralho() {
 
 Carta distribuirCartas() {
     int numeroCarta;
-    do { 
-        numeroCarta = rand() % 40; 
+    do {
+        numeroCarta = rand() % 40;
     } while (baralho[numeroCarta].ativo);
-    
+
     baralho[numeroCarta].ativo = true;
     return baralho[numeroCarta];
 }
@@ -172,47 +175,50 @@ Carta distribuirCartas() {
 void definirViraEManilha() {
     vira = distribuirCartas();
     manilha_valor = (vira.valor % 10) + 1;
-    vira.nome = valor_para_nome(vira.valor);
+    strcpy(vira.nome, valor_para_nome(vira.valor)); // <-- CORRIGIDO
 }
 
 int compararCartas(Carta c1, Carta c2) {
-    int pesosNaipe[] = {1, 2, 3, 4};
+    // A lógica de comparação foi mantida, pois está correta para Truco.
+    int pesosNaipe[] = {1, 2, 3, 4}; // OUROS=1, ESPADAS=2, COPAS=3, PAUS=4 (Ordem Crescente)
     bool c1Manilha = (c1.valor == manilha_valor);
     bool c2Manilha = (c2.valor == manilha_valor);
-    
+
     if (c1Manilha && !c2Manilha) return 1;
     if (!c1Manilha && c2Manilha) return -1;
     if (c1Manilha && c2Manilha) {
         if (pesosNaipe[c1.naipe] > pesosNaipe[c2.naipe]) return 1;
         if (pesosNaipe[c1.naipe] < pesosNaipe[c2.naipe]) return -1;
-        return 0;
+        return 0; // Empate
     }
     if (c1.valor > c2.valor) return 1;
     if (c1.valor < c2.valor) return -1;
-    return 0;
+    return 0; // Empate
 }
 
 int negociarTruco(int pontosAtuais, int iniciador, Jogador jogadores[2]) {
+    // ... (Mantido o código anterior para uso do servidor/debug local se necessário,
+    // mas o protocolo de Truco via socket será corrigido no server.c/client.c)
     int valores[] = {1, 3, 6, 9, 12};
     int idx = 0;
-    for (int i = 0; i < 5; ++i) 
-        if (valores[i] == pontosAtuais) { 
-            idx = i; 
-            break; 
+    for (int i = 0; i < 5; ++i)
+        if (valores[i] == pontosAtuais) {
+            idx = i;
+            break;
         }
-    
+
     int challenger = iniciador, responder = 1 - challenger;
 
     while (1) {
         if (idx >= 4) {
             int resp;
-            printf("\nRodada j� no m�ximo (%d). Jogador %d: [1] Aceitar  [3] Correr\n", valores[idx], responder + 1);
-            if (scanf("%d", &resp) != 1) { 
-                while (getchar() != '\n'); 
-                continue; 
+            printf("\nRodada já no máximo (%d). Jogador %d: [1] Aceitar  [3] Correr\n", valores[idx], responder + 1);
+            if (scanf("%d", &resp) != 1) {
+                while (getchar() != '\n');
+                continue;
             }
             while (getchar() != '\n');
-            
+
             if (resp == 1) return valores[idx];
             if (resp == 3) {
                 jogadores[challenger].pontos += valores[idx];
@@ -225,14 +231,14 @@ int negociarTruco(int pontosAtuais, int iniciador, Jogador jogadores[2]) {
         int proximoValor = valores[idx + 1];
         printf("\nJogador %d pediu Truco para %d pontos! Jogador %d, responda: [1] Aceitar  [2] Aumentar  [3] Correr\n",
                challenger + 1, proximoValor, responder + 1);
-        
+
         int resp;
-        if (scanf("%d", &resp) != 1) { 
-            while (getchar() != '\n'); 
-            continue; 
+        if (scanf("%d", &resp) != 1) {
+            while (getchar() != '\n');
+            continue;
         }
         while (getchar() != '\n');
-        
+
         if (resp == 1) return proximoValor;
         else if (resp == 3) {
             jogadores[challenger].pontos += proximoValor;
