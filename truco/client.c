@@ -11,6 +11,36 @@ void limparTela() {
     system("cls");
 }
 
+
+void limpar_buffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
+
+
+int validarEscolhaCartaCliente(Jogador* jogador) {
+    int escolha;
+    while (1) {
+        printf("Escolha uma carta (1-3): ");
+        if (scanf("%d", &escolha) == 1) {
+            limpar_buffer();
+            
+            if (escolha >= 1 && escolha <= 3) {
+                if (jogador->mao.cartas[escolha-1].ativo) {
+                    return escolha - 1;
+                } else {
+                    printf("Carta ja foi jogada! Escolha outra.\n");
+                }
+            } else {
+                printf("Escolha invalida! Digite 1, 2 ou 3.\n");
+            }
+        } else {
+            printf("Entrada invalida! Digite um numero.\n");
+            limpar_buffer();
+        }
+    }
+}
+
 void mostrarInfoRodadaCompleta(char* viraNome, char* viraNaipe, char* manilhaNome, int rodada,
                               int pontosJ1, int pontosJ2, int valorRodada, char* cartaJ1Nome, char* cartaJ1Naipe) {
     limparTela();
@@ -25,8 +55,7 @@ void mostrarInfoRodadaCompleta(char* viraNome, char* viraNaipe, char* manilhaNom
     printf("Jogador 1 jogou: %s de %s\n\n", cartaJ1Nome, cartaJ1Naipe);
 }
 
-// Funcao de ajuda para o cliente esperar a resposta do Truco
-// Retorna 1 se a mao acabou (corrida), 0 se o jogo continua
+
 int esperarRespostaTruco(SOCKET sock, int* pontosRodada, Jogador jogadores[2]) {
     char buffer[1024];
     while (1) {
@@ -42,7 +71,7 @@ int esperarRespostaTruco(SOCKET sock, int* pontosRodada, Jogador jogadores[2]) {
             sscanf(buffer, "TRUCO_ACEITO:%d", &valor);
             *pontosRodada = valor;
             printf("Truco aceito! Valor agora: %d\n", *pontosRodada);
-            return 0; // Continua o jogo
+            return 0; 
         } 
         else if (strstr(buffer, "TRUCO_AUMENTOU:") == buffer) {
             int valorTruco, challenger;
@@ -55,8 +84,11 @@ int esperarRespostaTruco(SOCKET sock, int* pontosRodada, Jogador jogadores[2]) {
             printf(" [3] Correr\n");
 
             int resp;
-            if (scanf("%d", &resp) != 1) { while (getchar() != '\n'); resp = 3; }
-            while (getchar() != '\n'); 
+            if (scanf("%d", &resp) != 1) { 
+                limpar_buffer(); 
+                resp = 3; 
+            }
+            limpar_buffer();
 
             if (resp == 2 && valorTruco == 12) {
                 resp = 1;
@@ -68,12 +100,12 @@ int esperarRespostaTruco(SOCKET sock, int* pontosRodada, Jogador jogadores[2]) {
             if (resp == 1) {
                 *pontosRodada = valorTruco;
                 printf("Truco aceito! Valor agora: %d\n", *pontosRodada);
-                // Nao retorna, espera a proxima acao 
+               
             } else if (resp == 3) {
                 printf("Voce correu do truco. Aguardando fim da mao...\n");
-                // Nao retorna, espera TRUCO_CORREU_FIM
+                
             }
-            // Se resp == 2, continua no loop esperando a resposta do Servidor
+            
         }
         else if (strstr(buffer, "TRUCO_CORREU_FIM:") == buffer) {
             int jogador, pontos;
@@ -81,9 +113,9 @@ int esperarRespostaTruco(SOCKET sock, int* pontosRodada, Jogador jogadores[2]) {
             jogadores[jogador].pontos = pontos;
             printf("Jogador %d correu do truco! Placar atualizado.\n", jogador + 1);
             printf("Mao finalizada devido a corrida. Aguardando nova mao...\n");
-            return 1; // Mao acabou
+            return 1; 
         } else {
-             // Se a resposta nao for de truco (ex: CARTA_J1), retorna ao loop principal
+              
              printf("Resposta inesperada durante truco: %s. Retomando fluxo.\n", buffer);
              return 0;
         }
@@ -95,7 +127,7 @@ int main() {
     if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
         printf("Erro ao inicializar Winsock\n");
         printf("Pressione Enter para sair...");
-        while (getchar() != '\n');
+        limpar_buffer();
         getchar();
         return 1;
     }
@@ -105,7 +137,7 @@ int main() {
         printf("Erro ao criar socket\n");
         WSACleanup();
         printf("Pressione Enter para sair...");
-        while (getchar() != '\n');
+        limpar_buffer();
         getchar();
         return 1;
     }
@@ -119,7 +151,7 @@ int main() {
         printf("Erro ao conectar com o servidor. Certifique-se que o 'server.exe' esta rodando.\n");
         printf("Codigo de erro Winsock: %d\n", WSAGetLastError());
         printf("Pressione Enter para sair...");
-        while (getchar() != '\n'); 
+        limpar_buffer();
         getchar();
         closesocket(sock);
         WSACleanup();
@@ -175,6 +207,7 @@ int main() {
             printf("=== NOVA MAO INICIADA ===\n");
             printf("Vira: %s de %s\n", viraNome, viraNaipe);
             printf("Manilha: %s\n", manilhaNome);
+            printf("Placar: J1=%d | J2=%d\n", jogadores[0].pontos, jogadores[1].pontos);
             mostrar_mao(&jogadores[1], 1);
 
             send(sock, "PRONTO", 6, 0);
@@ -207,8 +240,11 @@ int main() {
 
             int opcao;
             printf("\nJogador 2: 1-Jogar carta  2-Pedir Truco\n");
-            if (scanf("%d", &opcao) != 1) { while (getchar() != '\n'); opcao = 1; }
-            while (getchar() != '\n'); 
+            if (scanf("%d", &opcao) != 1) { 
+                limpar_buffer(); 
+                opcao = 1; 
+            }
+            limpar_buffer();
 
             if (opcao == 2) {
                 int valores[] = {1, 3, 6, 9, 12};
@@ -224,7 +260,7 @@ int main() {
 
                 if (currentIdx < maxIdx) {
                     int proximoValor = valores[currentIdx + 1];
-                    sprintf(buffer, "TRUCO_PEDIDO:%d:%d", proximoValor, 1); // 1 = Cliente J2
+                    sprintf(buffer, "TRUCO_PEDIDO:%d:%d", proximoValor, 1); 
                     send(sock, buffer, strlen(buffer), 0);
                     printf("Truco pedido para %d pontos enviado. Aguardando resposta...\n", proximoValor);
                     
@@ -242,24 +278,19 @@ int main() {
                 }
             }
 
-            int carta2;
-            printf("Escolha sua carta (1-3): ");
-            if (scanf("%d", &carta2) != 1) { while (getchar() != '\n'); continue; }
-            while (getchar() != '\n'); 
-            carta2--;
+            
+            int carta2 = validarEscolhaCartaCliente(&jogadores[1]);
 
-            if (carta2 >= 0 && carta2 < MAX_CARTAS_MAO && jogadores[1].mao.cartas[carta2].ativo) {
-                Carta c2 = jogadores[1].mao.cartas[carta2];
-                jogadores[1].mao.cartas[carta2].ativo = false;
+            Carta c2 = jogadores[1].mao.cartas[carta2];
+            jogadores[1].mao.cartas[carta2].ativo = false;
 
-                sprintf(buffer, "CARTA_J2:%d:%d", c2.valor, c2.naipe);
-                send(sock, buffer, strlen(buffer), 0);
+            sprintf(buffer, "CARTA_J2:%d:%d", c2.valor, c2.naipe);
+            send(sock, buffer, strlen(buffer), 0);
 
-                printf("\nVoce jogou: %s de %s\n", c2.nome, convertedor_de_naipe(c2.naipe));
-                
-                if (strstr(buffer, "SUA_VEZ_PRIMEIRO") == NULL) {
-                    printf("Aguardando Jogador 1...\n");
-                }
+            printf("\nVoce jogou: %s de %s\n", c2.nome, convertedor_de_naipe(c2.naipe));
+            
+            if (strstr(buffer, "SUA_VEZ_PRIMEIRO") == NULL) {
+                printf("Aguardando Jogador 1...\n");
             }
         }
         else if (strstr(buffer, "AGUARDE_JOGADA_J1") == buffer) {
@@ -276,8 +307,11 @@ int main() {
             printf(" [3] Correr\n");
 
             int resp;
-            if (scanf("%d", &resp) != 1) { while (getchar() != '\n'); resp = 3; }
-            while (getchar() != '\n'); 
+            if (scanf("%d", &resp) != 1) { 
+                limpar_buffer(); 
+                resp = 3; 
+            }
+            limpar_buffer();
 
             if (resp == 2 && valorTruco == 12) {
                 resp = 1;
@@ -313,8 +347,11 @@ int main() {
             printf(" [3] Correr\n");
 
             int resp;
-            if (scanf("%d", &resp) != 1) { while (getchar() != '\n'); resp = 3; }
-            while (getchar() != '\n'); 
+            if (scanf("%d", &resp) != 1) { 
+                limpar_buffer(); 
+                resp = 3; 
+            }
+            limpar_buffer();
 
             if (resp == 2 && valorTruco == 12) {
                 resp = 1;
@@ -363,7 +400,7 @@ int main() {
                 
                 if (strcmp(buffer, "PAUSA_CLIENTE") == 0) {
                      printf("\nPressione Enter para continuar para a proxima rodada...");
-                     while (getchar() != '\n');
+                     limpar_buffer();
                      getchar();
                      send(sock, "OK_PAUSA", 8, 0);
                 }
@@ -382,6 +419,10 @@ int main() {
         }
         else if (strstr(buffer, "JOGAR_NOVAMENTE") == buffer) {
             printf("Servidor escolheu jogar novamente. Iniciando novo jogo...\n");
+            
+          
+            jogadores[0].rodadaGanha = 0;
+            jogadores[1].rodadaGanha = 0;
         }
         else if (strstr(buffer, "FINALIZAR") == buffer) {
             printf("Servidor encerrou a partida. Fechando conexao.\n");
@@ -394,13 +435,16 @@ int main() {
             jogadores[0].pontos = pontos1;
             jogadores[1].pontos = pontos2;
             printf("Proxima mao inicia com: %s\n", proximoIniciador == 0 ? "Jogador 1" : "Voce");
+            
+            
+            printf("Aguardando novas cartas para a proxima mao...\n");
         } else {
             printf("Mensagem desconhecida: %s\n", buffer);
         }
     }
 
     printf("Conexao encerrada. Pressione Enter para sair...");
-    while (getchar() != '\n'); 
+    limpar_buffer();
     getchar();
 
     closesocket(sock);
