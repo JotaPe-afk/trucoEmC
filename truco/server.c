@@ -4,19 +4,21 @@
 #include <time.h>
 #include "truco.h"
 
+#pragma comment(lib, "ws2_32.lib")
+
 SOCKET cliente_global;
 
 void enviarInfoCompleta(SOCKET cliente, Carta cartaJogador1, int rodada, Jogador jogadores[2]) {
     char buffer[512];
-
-    sprintf(buffer, "INFO_COMPLETA:Rodada%d:J1:%s:%s:Vira:%s:%s:Manilha:%s:Placar%d:%d:ValorRodada%d",
-            rodada,
-            cartaJogador1.nome,
+    
+    sprintf(buffer, "INFO_COMPLETA:Rodada%d:J1:%s:%s:Vira:%s:%s:Manilha:%s:Placar%d:%d:ValorRodada%d", 
+            rodada, 
+            cartaJogador1.nome, 
             convertedor_de_naipe(cartaJogador1.naipe),
             vira.nome,
             convertedor_de_naipe(vira.naipe),
             valor_para_nome(manilha_valor),
-            jogadores[0].pontos,
+            jogadores[0].pontos, 
             jogadores[1].pontos,
             pontosRodada);
     send(cliente, buffer, strlen(buffer), 0);
@@ -34,7 +36,7 @@ void processarTrucoServidor(SOCKET cliente, int* pontosRodada, Jogador jogadores
             break;
         }
     }
-
+    
     int proposedIdx = currentIdx + 1;
 
     if (currentIdx >= maxIdx) {
@@ -47,89 +49,100 @@ void processarTrucoServidor(SOCKET cliente, int* pontosRodada, Jogador jogadores
     int challenger = iniciador;
     int responder = 1 - challenger;
 
-    sprintf(buffer, "TRUCO_PEDIDO:%d:%d", negociandoValor, challenger);
-    send(cliente, buffer, strlen(buffer), 0);
-    printf("Truco pedido para %d pontos enviado para Jogador %d\n", negociandoValor, responder + 1);
-
+    if (iniciador == 0) {
+        sprintf(buffer, "TRUCO_PEDIDO:%d:%d", negociandoValor, challenger);
+        send(cliente, buffer, strlen(buffer), 0);
+        printf("Truco pedido para %d pontos enviado para Jogador %d\n", negociandoValor, responder + 1);
+    } 
+    
     while (1) {
-        int bytesRecebidos = recv(cliente, buffer, sizeof(buffer) - 1, 0);
-        if (bytesRecebidos <= 0) return;
-        buffer[bytesRecebidos] = '\0';
+        
+        if (responder == 0) {
+            char respJ1;
+            printf("Jogador 2 pediu Truco para %d pontos! Jogador 1: [1] Aceitar", negociandoValor);
+            if (proposedIdx < maxIdx) {
+                printf(" [2] Aumentar");
+            }
+            printf(" [3] Correr\n");
 
-        if (strstr(buffer, "TRUCO_RESPOSTA:") == buffer) {
-            int resposta;
-            sscanf(buffer, "TRUCO_RESPOSTA:%d", &resposta);
+            scanf(" %c", &respJ1);
+            while (getchar() != '\n'); 
 
-            if (resposta == 1) {
+            if (respJ1 == '1') {
                 *pontosRodada = negociandoValor;
                 sprintf(buffer, "TRUCO_ACEITO:%d", *pontosRodada);
                 send(cliente, buffer, strlen(buffer), 0);
-                printf("Voce aceitou o truco para %d pontos\n", *pontosRodada);
                 break;
-            } else if (resposta == 3) {
-                jogadores[challenger].pontos += *pontosRodada;
+            } 
+            else if (respJ1 == '3') {
+                jogadores[challenger].pontos += valores[proposedIdx - 1]; 
                 sprintf(buffer, "TRUCO_CORREU_FIM:%d:%d", challenger, jogadores[challenger].pontos);
                 send(cliente, buffer, strlen(buffer), 0);
                 return;
-            } else if (resposta == 2) {
-
-                if (proposedIdx >= maxIdx) {
-                    *pontosRodada = valores[maxIdx];
-                    sprintf(buffer, "TRUCO_ACEITO:%d", *pontosRodada);
-                    send(cliente, buffer, strlen(buffer), 0);
-                    printf("Truco no maximo. Aceitando para %d pontos\n", *pontosRodada);
-                    break;
-                }
-
+            } 
+            else if (respJ1 == '2' && proposedIdx < maxIdx) {
                 int temp = challenger;
-                challenger = responder;
-                responder = temp;
-
+                challenger = responder; 
+                responder = temp;       
+                
                 proposedIdx++;
                 negociandoValor = valores[proposedIdx];
 
-                char respJ1;
-                printf("Jogador %d aumentou para %d pontos! Jogador 1: [1] Aceitar", challenger + 1, negociandoValor);
-                if (proposedIdx < maxIdx) {
-                    printf(" [2] Aumentar");
-                }
-                printf(" [3] Correr\n");
+                sprintf(buffer, "TRUCO_AUMENTOU:%d:%d", negociandoValor, challenger);
+                send(cliente, buffer, strlen(buffer), 0);
+            } 
+            else {
+                printf("Opcao invalida ou Truco no maximo. Aceitando.\n");
+                *pontosRodada = negociandoValor;
+                sprintf(buffer, "TRUCO_ACEITO:%d", *pontosRodada);
+                send(cliente, buffer, strlen(buffer), 0);
+                break;
+            }
+        }
+        
+        else if (responder == 1) { 
+            int bytesRecebidos = recv(cliente, buffer, sizeof(buffer) - 1, 0);
+            if (bytesRecebidos <= 0) return;
+            buffer[bytesRecebidos] = '\0';
 
-                scanf(" %c", &respJ1);
-                while (getchar() != '\n');
+            if (strstr(buffer, "TRUCO_RESPOSTA:") == buffer) {
+                int resposta;
+                sscanf(buffer, "TRUCO_RESPOSTA:%d", &resposta);
 
-                if (respJ1 == '1') {
+                if (resposta == 1) { 
                     *pontosRodada = negociandoValor;
                     sprintf(buffer, "TRUCO_ACEITO:%d", *pontosRodada);
                     send(cliente, buffer, strlen(buffer), 0);
+                    printf("Jogador 2 aceitou o truco para %d pontos\n", *pontosRodada);
                     break;
-                } else if (respJ1 == '3') {
-                    jogadores[challenger].pontos += negociandoValor;
+                } 
+                else if (resposta == 3) { 
+                    jogadores[challenger].pontos += valores[proposedIdx - 1]; 
                     sprintf(buffer, "TRUCO_CORREU_FIM:%d:%d", challenger, jogadores[challenger].pontos);
                     send(cliente, buffer, strlen(buffer), 0);
                     return;
-                } else if (respJ1 == '2' && proposedIdx < maxIdx) {
-
-                    int temp2 = challenger;
-                    challenger = responder;
-                    responder = temp2;
-
+                } 
+                else if (resposta == 2) { 
+                    if (proposedIdx >= maxIdx) { 
+                        *pontosRodada = valores[maxIdx];
+                        sprintf(buffer, "TRUCO_ACEITO:%d", *pontosRodada);
+                        send(cliente, buffer, strlen(buffer), 0);
+                        printf("Truco no maximo. Aceitando para %d pontos\n", *pontosRodada);
+                        break;
+                    }
+                    
+                    int temp = challenger;
+                    challenger = responder; 
+                    responder = temp;       
+                    
                     proposedIdx++;
                     negociandoValor = valores[proposedIdx];
-
-                    sprintf(buffer, "TRUCO_AUMENTOU:%d:%d", negociandoValor, challenger);
-                    send(cliente, buffer, strlen(buffer), 0);
-                } else {
-                    printf("Opcao invalida ou Truco no maximo. Aceitando.\n");
-                    *pontosRodada = negociandoValor;
-                    sprintf(buffer, "TRUCO_ACEITO:%d", *pontosRodada);
-                    send(cliente, buffer, strlen(buffer), 0);
-                    break;
                 }
             }
         }
-    }
+    } 
 }
+
 
 int determinarIniciadorProximaRodada(Jogador jogadores[2], int iniciadorAtual, int resultadoRodada) {
     if (resultadoRodada > 0) return 0;
@@ -142,7 +155,7 @@ int validarEscolhaCarta(Jogador* jogador) {
     while (1) {
         printf("Jogador 1, escolha (1-3): ");
         if (scanf("%d", &escolha) == 1) {
-            while (getchar() != '\n');
+            while (getchar() != '\n'); 
             if (escolha >= 1 && escolha <= 3) {
                 if (jogador->mao.cartas[escolha-1].ativo) {
                     return escolha - 1;
@@ -154,7 +167,7 @@ int validarEscolhaCarta(Jogador* jogador) {
             }
         } else {
             printf("Entrada invalida! Digite um numero.\n");
-            while (getchar() != '\n');
+            while (getchar() != '\n'); 
         }
     }
 }
@@ -209,11 +222,12 @@ int main() {
 
     char buffer[1024];
     int quemIniciaMao = 0;
+    
+    resetarJogador(jogadores);
 
     while (1) {
         iniciandoBaralho();
-        resetarJogador(jogadores);
-        reiniciarRodada(jogadores);
+        reiniciarRodada(jogadores); 
         distribuirMaoParaJogadores(jogadores);
         pontosRodada = 1;
 
@@ -244,6 +258,7 @@ int main() {
         system("cls");
         printf("\n=== NOVA MAO ===\n");
         printf("Vira: %s de %s | Manilha: %s\n", vira.nome, convertedor_de_naipe(vira.naipe), valor_para_nome(manilha_valor));
+        printf("Placar: Jogador1=%d | Jogador2=%d\n", jogadores[0].pontos, jogadores[1].pontos);
         printf("Quem inicia: %s\n", quemIniciaMao == 0 ? "Jogador 1 (Voce)" : "Jogador 2");
         mostrar_mao(&jogadores[0], 0);
 
@@ -262,12 +277,16 @@ int main() {
             int resultado = 0;
 
             if (iniciadorRodada == 0) {
+                // CORRECAO: Envia sinal de espera para o cliente
+                sprintf(buffer, "AGUARDE_JOGADA_J1");
+                send(cliente_global, buffer, strlen(buffer), 0);
+                
                 mostrar_mao(&jogadores[0], 0);
 
                 int opcao;
                 printf("\nJogador 1: 1-Jogar carta  2-Pedir Truco\n");
                 if (scanf("%d", &opcao) != 1) { while (getchar() != '\n'); opcao = 1; }
-                while (getchar() != '\n');
+                while (getchar() != '\n'); 
 
                 if (opcao == 2) {
                     processarTrucoServidor(cliente_global, &pontosRodada, jogadores, 0);
@@ -275,7 +294,7 @@ int main() {
                     if (jogadores[0].pontos > 0 || jogadores[1].pontos > 0) {
                         printf("Mao finalizada devido a corrida. Pressione Enter para nova mao...\n");
                         while (getchar() != '\n');
-                        getchar();
+                        getchar(); 
                         break;
                     }
 
@@ -320,7 +339,7 @@ int main() {
                         getchar();
                         break;
                     }
-
+                    
                     bytesRecebidos = recv(cliente_global, buffer, sizeof(buffer) - 1, 0);
                     if (bytesRecebidos <= 0) { printf("Cliente desconectou\n"); break; }
                     buffer[bytesRecebidos] = '\0';
@@ -332,7 +351,7 @@ int main() {
                     c2.valor = valor2;
                     c2.naipe = (Naipe)naipe2;
                     strcpy(c2.nome, valor_para_nome(c2.valor));
-
+                    
                     printf("Jogador 2 jogou: %s de %s\n", c2.nome, convertedor_de_naipe(c2.naipe));
                 }
 
@@ -381,7 +400,7 @@ int main() {
                 int opcao;
                 printf("\nJogador 1: 1-Jogar carta  2-Pedir Truco\n");
                 if (scanf("%d", &opcao) != 1) { while (getchar() != '\n'); opcao = 1; }
-                while (getchar() != '\n');
+                while (getchar() != '\n'); 
 
                 if (opcao == 2) {
                     processarTrucoServidor(cliente_global, &pontosRodada, jogadores, 0);
@@ -439,25 +458,25 @@ int main() {
             rodada++;
 
             if (rodada <= 3 && jogadores[0].rodadaGanha < 2 && jogadores[1].rodadaGanha < 2) {
-
-                int quemPausa = (resultado > 0) ? 0 : (resultado < 0) ? 1 : iniciadorRodada;
-
+                
+                int quemPausa = (resultado > 0) ? 0 : (resultado < 0) ? 1 : iniciadorRodada; 
+                
                 if (quemPausa == 1) {
                     sprintf(buffer, "PAUSA_CLIENTE");
                     send(cliente_global, buffer, strlen(buffer), 0);
-
+                    
                     printf("\nAguardando Jogador 2 pressionar Enter para continuar...");
-                    int bytes_pausa = recv(cliente_global, buffer, sizeof(buffer), 0);
+                    int bytes_pausa = recv(cliente_global, buffer, sizeof(buffer), 0); 
                     if (bytes_pausa <= 0 || strstr(buffer, "OK_PAUSA") == NULL) {
                         printf("Erro ou desconexao ao esperar confirmacao da pausa.\n");
                         break;
                     }
-                }
-                else {
+                } 
+                else { 
                     printf("\nPressione Enter para continuar para a proxima rodada...");
-                    while (getchar() != '\n');
+                    while (getchar() != '\n'); 
                     getchar();
-                    sprintf(buffer, "PAUSA_SERVIDO");
+                    sprintf(buffer, "PAUSA_SERVIDO"); 
                     send(cliente_global, buffer, strlen(buffer), 0);
                 }
             }
@@ -478,7 +497,7 @@ int main() {
 
         if (jogadores[0].pontos >= 12 || jogadores[1].pontos >= 12) {
             int vencedor = jogadores[0].pontos >= 12 ? 0 : 1;
-
+            
             if (vencedor == 0) {
                 printf("\nPARABENS! Voce venceu o jogo!\n");
                 sprintf(buffer, "FIM:0");
@@ -487,7 +506,7 @@ int main() {
                 sprintf(buffer, "FIM:1");
             }
             send(cliente_global, buffer, strlen(buffer), 0);
-
+            
             char escolha;
             while (1) {
                 printf("Fim do Jogo! Deseja jogar novamente? [S]im / [N]ao: ");
@@ -495,7 +514,7 @@ int main() {
                     while (getchar() != '\n');
                     continue;
                 }
-                while (getchar() != '\n');
+                while (getchar() != '\n'); 
                 if (escolha == 'S' || escolha == 's' || escolha == 'N' || escolha == 'n') break;
                 printf("Resposta invalida. ");
             }
@@ -504,7 +523,7 @@ int main() {
                 printf("Iniciando novo jogo...\n");
                 sprintf(buffer, "JOGAR_NOVAMENTE");
                 send(cliente_global, buffer, strlen(buffer), 0);
-                resetarJogador(jogadores);
+                resetarJogador(jogadores); 
                 quemIniciaMao = 0;
                 continue;
             } else {
